@@ -1,0 +1,15 @@
+# Test cases for the simple search.
+simple:
+  - keyword: 'good happy beauty'
+    results:
+      - 'Futurama'
+# Test cases for the advanced search at /search/node.
+advanced:
+  - any: 'cicero caesar'
+    phrase: ''
+    none: 'futurama'
+    types:
+      - 'Article'
+    languages: []
+    results:
+      - 'Cicero'

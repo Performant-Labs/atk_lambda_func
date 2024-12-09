@@ -1,0 +1,14 @@
+{
+  "admin": {
+    "accountType": "admin",
+    "userName": "qa_administrator",
+    "userPassword": "qa_administrator",
+    "userRoles": ["administrator"]
+    },
+  "authenticated": {
+    "accountType": "authenticated",
+    "userName": "qa_authenticated",
+    "userPassword": "qa_authenticated",
+    "userRoles": ["authenticated"]
+    }
+}

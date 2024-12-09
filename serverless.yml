@@ -1,0 +1,50 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: performantlabs
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: atk-lambda-func
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: atk-lambda-func
+
+stages:
+  default:
+    resolvers:
+      performantlabs:
+        type: aws
+        profile: performantlabs
+        region: us-east-1
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:PutObject"      # Allow putting objects into the bucket
+      Resource:
+        - "arn:aws:s3:::*"    # Bucket ARN
+    - Effect: "Allow"
+      Action:
+        - "secretsmanager:GetSecretValue"  # Permission to get secret values
+      Resource:
+        - "arn:aws:secretsmanager:us-east-1:${aws:accountId}:secret:atk-*"
+
+package:
+  patterns:
+    - '!.idea/**'
+    - '!.git/**'
+
+custom:
+  atksecret: ${ssm:/aws/reference/secretsmanager/atk}
+
+functions:
+  hello:
+    handler: handler.hello
+    environment:
+      ACCOUNT_ID: ${performantlabs:accountId}
+
+  execute_tests:
+    handler: execute_tests.handler
+    timeout: 120
+    environment:
+      ACCOUNT_ID: ${performantlabs:accountId}
+      PLAYWRIGHT_SERVICE_ACCESS_TOKEN: ${self:custom.atksecret.PLAYWRIGHT_SERVICE_ACCESS_TOKEN}
