@@ -53,7 +53,7 @@ exports.handler = async (event) => {
 async function runTests() {
   return new Promise((resolve, reject) => {
     // Run a single test. Be aware of timeout here!!! TODO
-    exec('npx playwright test --config=playwright.service.config.js --reporter=json --grep=@ATK-PW-1000', (error, stdout, stderr) => {
+    exec('npx playwright test --config=playwright.service.config.js --reporter=json --workers=10 --grep=@smoke', (error, stdout, stderr) => {
     // exec('npx playwright test --config=playwright.service.config.js --reporter=json --grep=@ATK-PW-1000', (error, stdout, stderr) => {
     // exec('env', (error, stdout, stderr) => {
       // Playwright Testing Service spoils stdout, so fix it.
