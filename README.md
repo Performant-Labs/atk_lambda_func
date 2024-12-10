@@ -36,7 +36,7 @@ Add a pair with key "PLAYWRIGHT_SERVICE_ACCESS_TOKEN" and the token value.
 
 ### S3 Bucket
 
-Configure S3 bucket to store tests results.
+Configure S3 bucket to store testing results.
 
 Note that bucket names should be unique among the region.
 For instance, a bucket with the name including random token
@@ -47,6 +47,10 @@ aws --profile performantlabs s3api create-bucket     --bucket atk-playwright-res
 ```
 
 Update bucket name in `.env` file.
+
+If test results need to be publicly available, 
+[open public read access](https://bobbyhadz.com/blog/aws-s3-allow-public-read-access)
+to the bucket.
 
 ## Usage
 
