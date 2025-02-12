@@ -1,3 +1,5 @@
+import path from 'path';
+
 const { defineConfig } = require('@playwright/test');
 const { getServiceConfig, ServiceOS } = require('@azure/microsoft-playwright-testing');
 const config = require('./playwright.config');
@@ -13,11 +15,15 @@ export default defineConfig(
     useCloudHostedBrowsers: true // Set to false if you want to only use reporting and not cloud hosted browsers
   }),
   {
-    /* 
+    /*
     Playwright Testing service reporter is added by default.
     This will override any reporter options specified in the base playwright config.
     If you are using more reporters, please update your configuration accordingly.
     */
-    reporter: [['list'], ['@azure/microsoft-playwright-testing/reporter']],
+    reporter: [
+      ['list'],
+      ['@azure/microsoft-playwright-testing/reporter'],
+      ['json', { outputFile: path.join(config.outputDir, 'index.json') }],
+    ],
   }
 );

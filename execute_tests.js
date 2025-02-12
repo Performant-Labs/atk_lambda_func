@@ -2,8 +2,11 @@ require('dotenv').config();
 const { exec } = require('child_process');
 const { S3Client } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
-const { join } = require('path');
-const fs = require('fs').promises;
+const path = require('path');
+const fs = require('fs');
+
+// Must be in /tmp and the same as in the playwright config, can't import it here.
+const testResultsPath = '/tmp/test-results/';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
@@ -13,101 +16,83 @@ exports.handler = async (event) => {
   if (!event.url) {
     return {
       statusCode: 400,
-      body: JSON.stringify({
-        message: 'Invalid payload',
-        error: '"url" is missing'
-      }),
+      message: '"url" is missing',
     }
   }
   // Read in playwright.config.js
   process.env.BASE_URL = event.url;
 
+  // Customize grep if needed
+  const grep = event.grep ?? '@smoke';
+
   try {
     // Execute the Playwright tests
-    const outputObj = await runTests();
-    const jsonOutput = outputObj.stdout;
-    const code = outputObj.code;
+    const { code, message } = await runTests({ grep });
+
+    // Report is not written, consider it an error and raise with command output
+    if (!fs.existsSync(testResultsPath) || !fs.existsSync(`${testResultsPath}/index.json`)) {
+      return {
+        statusCode: 500,
+        message,
+      }
+    }
 
     // Upload results to S3
-    const resultUri = await uploadResultsToS3(jsonOutput, s3Bucket);
+    const resultUri = await uploadResultsToS3({
+      bucket: s3Bucket
+    });
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        message: `Tests executed with exit code ${code}`,
-        resultUri,
-      }),
+      message: `Tests executed with exit code ${code}`,
+      resultUri,
     };
   } catch (error) {
     console.error('Error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        message: 'An error occurred during testing',
-        error: error.toString(),
-      }),
+      message: error.toString(),
     };
   }
 };
 
-async function runTests() {
+async function runTests({ grep }) {
   return new Promise((resolve, reject) => {
-    // Run a single test. Be aware of timeout here!!! TODO
-    exec('npx playwright test --config=playwright.service.config.js --reporter=json --workers=10 --grep=@smoke', (error, stdout, stderr) => {
-    // exec('npx playwright test --config=playwright.service.config.js --reporter=json --grep=@ATK-PW-1000', (error, stdout, stderr) => {
+    // Configure runner options / replace command to debug / ... here.
+    exec(`npx playwright test --config=playwright.service.config.js --workers=10 --grep=${grep}`, (error, stdout, stderr) => {
+    // exec('npx playwright test --config=playwright.service.config.js --grep=@ATK-PW-1000', (error, stdout, stderr) => {
     // exec('env', (error, stdout, stderr) => {
-      // Playwright Testing Service spoils stdout, so fix it.
-      const stdout1 = stdout.replace(/^[^{]*/, '');
-
-      // Resolve if stdout is valid json (even if test failed or raised an error)
-      // (Because I want report anyway, later to figure out result format.)
-      let ok = true;
-      try {
-        JSON.parse(stdout1);
-      } catch (_) {
-        ok = false;
-      }
-      if (!ok) {
-        reject(`Error executing tests: ${stderr}${stdout}`);
-        return;
-      }
-      // Resolve JSON report, and exit code.
-      resolve({ stdout: stdout1, stderr, code: error?.code ?? 0 });
+      // Cut off npm update notice.
+      let message = `${stderr}${stdout}`.replaceAll(/npm notice[^\n]*\n/g, "");
+      // Resolve command line output, and exit code.
+      resolve({ message, code: error?.code ?? 0 });
     });
   });
 }
 
-async function uploadResultsToS3(outputJson, bucket) {
-  // Must be consistent with playwright.config.js.
-  const testResultsPath = '/tmp/test-results';
-
-  // Upload index.json (maybe should be HTML???)
-  // and all files from testResultsPath.
+async function uploadResultsToS3({ bucket }) {
+  // Root of the report in the bucket.
   const root = `results/${Date.now()}`;
-  const upload = new Upload({
-    client: s3Client,
-    params: {
-      Bucket: bucket,
-      Key: `${root}/index.json`,
-      Body: outputJson
-    }
-  });
 
-  const result = await upload.done();
+  // Upload result of index.json.
+  let result;
 
   await walk(testResultsPath, async (filepath) => {
-    // Relative path but starting with "/"
-    const relativePath = filepath.replace(testResultsPath, '');
-    const body = await fs.readFile(filepath);
+    // Path relative to testResultsPath. It will comprise path inside the bucket.
+    const relativePath = filepath.replace(new RegExp(`${testResultsPath}/?`), '');
+    const body = await fs.promises.readFile(filepath);
     const upload = new Upload({
       client: s3Client,
       params: {
         Bucket: bucket,
-        Key: `${root}${relativePath}`,
+        Key: `${root}/${relativePath}`,
         Body: body
       }
     });
-    await upload.done();
+    let output = await upload.done();
+    if (relativePath === 'index.json') {
+      result = output;
+    }
   });
 
   return result.Location;
@@ -127,10 +112,10 @@ async function uploadResultsToS3(outputJson, bucket) {
  * @return {Promise<*>}
  */
 function walk(dir, callback) {
-  return fs.readdir(dir).then(function (files) {
+  return fs.promises.readdir(dir).then(function (files) {
     return Promise.all(files.map(function (file) {
-      const filepath = join(dir, file);
-      return fs.stat(filepath).then(function (stats) {
+      const filepath = path.join(dir, file);
+      return fs.promises.stat(filepath).then(function (stats) {
         if (stats.isDirectory()) {
           return walk(filepath, callback);
         } else if (stats.isFile()) {
