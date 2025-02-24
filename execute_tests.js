@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const { S3Client } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const path = require('path');
@@ -59,15 +59,43 @@ exports.handler = async (event) => {
 async function runTests({ grep }) {
   return new Promise((resolve, reject) => {
     // Configure runner options / replace command to debug / ... here.
-    exec(`npx playwright test --config=playwright.service.config.js --workers=10 --grep=${grep}`, (error, stdout, stderr) => {
-    // exec('npx playwright test --config=playwright.service.config.js --grep=@ATK-PW-1000', (error, stdout, stderr) => {
-    // exec('env', (error, stdout, stderr) => {
+    exec('npx', [
+      'playwright',
+      'test',
+      '--config=playwright.service.config.js',
+      '--workers=10',
+      `--grep=${grep}`,
+    ], ({ code, output }) => {
       // Cut off npm update notice.
-      let message = `${stderr}${stdout}`.replaceAll(/npm notice[^\n]*\n/g, "");
+      let message = `${output}`.replaceAll(/npm notice[^\n]*\n/g, "");
       // Resolve command line output, and exit code.
-      resolve({ message, code: error?.code ?? 0 });
+      resolve({ message, code });
     });
   });
+}
+
+/**
+ * Similar to child_process.exec but with logging of stdout and stderr.
+ *
+ * @param cmd {string} Command to run.
+ * @param args {string[]} List of string arguments.
+ * @param callback {function({code: number, output: string}): *} Callback.
+ */
+function exec(cmd, args, callback) {
+  const childProcess = spawn(cmd, args, { stdio: 'pipe' });
+  let output = '';
+
+  childProcess.stdout.on('data', (chunk) => {
+    process.stdout.write(chunk);
+    output += chunk.toString();
+  });
+
+  childProcess.stderr.on('data', (chunk) => {
+    process.stderr.write(chunk);
+    output += chunk.toString();
+  });
+
+  childProcess.on('close', (code) => callback({ code, output }));
 }
 
 async function uploadResultsToS3({ bucket }) {
