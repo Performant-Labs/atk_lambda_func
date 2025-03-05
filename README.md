@@ -79,7 +79,7 @@ functions:
 After successful deployment, you can invoke the deployed function by using the following command:
 
 ```
-sls invoke --function execute_tests --data '{"url":"https://simplytest.me/"}'
+sls invoke --function execute_tests --data '{"url":"https://simplytest.me/","grep":"@smoke","uuid":"'$(uuidgen)'"}'
 ```
 
 Which should result in response similar to the following:

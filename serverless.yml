@@ -27,6 +27,12 @@ provider:
         - "secretsmanager:GetSecretValue"  # Permission to get secret values
       Resource:
         - "arn:aws:secretsmanager:us-east-1:${aws:accountId}:secret:atk-*"
+    - Effect: "Allow"
+      Action:
+          - "logs:CreateLogStream"
+          - "logs:PutLogEvents"
+      Resource:
+          - "*"
 
 package:
   patterns:
