@@ -1,7 +1,11 @@
 require('dotenv').config();
 const { spawn } = require('child_process');
 const { S3Client } = require('@aws-sdk/client-s3');
-const { CloudWatchLogsClient, CreateLogStreamCommand, PutLogEventsCommand } = require('@aws-sdk/client-cloudwatch-logs');
+const {
+  CloudWatchLogsClient,
+  CreateLogStreamCommand,
+  PutLogEventsCommand
+} = require('@aws-sdk/client-cloudwatch-logs');
 const { Upload } = require('@aws-sdk/lib-storage');
 const path = require('path');
 const fs = require('fs');
@@ -13,47 +17,68 @@ const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const cloudWatchLogsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
 
 exports.handler = async (event) => {
-  const s3Bucket = process.env.AWS_S3_BUCKET;
-
-  if (!event.url) {
-    return {
-      statusCode: 400,
-      message: '"url" is missing',
-    }
+  // Log start to the default log.
+  console.log('START Execution:' + JSON.stringify(event));
+  let logAndReturn = (value) => {
+    console.log('END Execution:' + JSON.stringify(value));
+    return Promise.resolve(value);
   }
-  // Read in playwright.config.js
-  process.env.BASE_URL = event.url;
-
-  // Customize grep if needed
-  const grep = event.grep ?? '@smoke';
-
-
-  // Custom LogWatch which is different from the defalut (console) logs.
-  // The perpose of it is to have predictable stream name
-  const uuid = event.uuid;
-  if (typeof uuid !== 'string' || !/[0-9a-z\-]{36}/.test(uuid)) {
-    return {
-      statusCode: 400,
-      message: '"uuid" is missing or doesn\'t seem uuiddy enough',
-    }
-  }
-  const params = {
-    logGroupName: process.env.AWS_CLOUDWATCH_GROUP,
-    logStreamName: uuid,
-  };
-  const command = new CreateLogStreamCommand(params);
-  const response = await cloudWatchLogsClient.send(command);
 
   try {
+    const s3Bucket = process.env.AWS_S3_BUCKET;
+
+    if (!event.url) {
+      return await logAndReturn({
+        statusCode: 400,
+        message: '"url" is missing',
+      });
+    }
+    // Read in playwright.config.js
+    process.env.BASE_URL = event.url;
+
+    // Customize grep if needed
+    const grep = event.grep ?? '@smoke';
+
+
+    // Custom LogWatch which is different from the defalut (console) logs.
+    // The perpose of it is to have predictable stream name
+    const uuid = event.uuid;
+    if (typeof uuid !== 'string' || !/[0-9a-z\-]{36}/.test(uuid)) {
+      return await logAndReturn({
+        statusCode: 400,
+        message: '"uuid" is missing or doesn\'t seem uuiddy enough',
+      });
+    }
+    const params = {
+      logGroupName: process.env.AWS_CLOUDWATCH_GROUP,
+      logStreamName: uuid,
+    };
+    const command = new CreateLogStreamCommand(params);
+    const response = await cloudWatchLogsClient.send(command);
+
+    // Log start to the custom log.
+    await cloudwatchLog('START Execution:' + JSON.stringify(event), params);
+
+    // Now we are happy owners of the CloudWatch logger, so
+    // let adjust logAndReturn accordingly.
+    let logAndReturnInitial = logAndReturn;
+    logAndReturn = (value) => logAndReturnInitial(value).then((value) => {
+      cloudwatchLog('END Execution:' + JSON.stringify(value), params);
+      return value;
+    }).catch((error) => {
+      console.error('CloudWatch Log error', error);
+      return value;
+    });
+
     // Execute the Playwright tests
     const { code, message } = await runTests({ grep, }, params);
 
     // Report is not written, consider it an error and raise with command output
     if (!fs.existsSync(testResultsPath) || !fs.existsSync(`${testResultsPath}/index.json`)) {
-      return {
+      return await logAndReturn({
         statusCode: 500,
         message,
-      }
+      });
     }
 
     // Upload results to S3
@@ -62,19 +87,39 @@ exports.handler = async (event) => {
       uuid: uuid,
     });
 
-    return {
+    return await logAndReturn({
       statusCode: 200,
       message: `Tests executed with exit code ${code}`,
       resultUri,
-    };
+    });
   } catch (error) {
     console.error('Error:', error);
-    return {
+    return await logAndReturn({
       statusCode: 500,
       message: error.toString(),
-    };
+    });
   }
 };
+
+/**
+ * put a single message to the custom CloudWatch stream.
+ *
+ * @param message {string} message
+ * @param logGroupName {string} group name
+ * @param logStreamName {string} stream name
+ * @return {Promise<*>}
+ */
+function cloudwatchLog(message, { logGroupName, logStreamName }) {
+  const command = new PutLogEventsCommand({
+    logGroupName,
+    logStreamName,
+    logEvents: [{
+      timestamp: new Date().getTime(),
+      message,
+    }],
+  });
+  return cloudWatchLogsClient.send(command);
+}
 
 /**
  * Run the test, with the particular run params, and logging params.
@@ -123,7 +168,7 @@ function exec(cmd, args, callback, { logGroupName, logStreamName }) {
     let pos;
     const lines = [];
     while ((pos = output.indexOf('\n', cursor)) !== -1) {
-      const line = output.substring(cursor,pos );
+      const line = output.substring(cursor, pos);
 
       lines.push(line);
 
