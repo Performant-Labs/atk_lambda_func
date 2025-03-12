@@ -51,14 +51,17 @@ test.describe("Menu tests.", () => {
 
     // Verify the menu item was created by checking its presence.
     await page.goto(baseUrl);
-    await page.locator(`text=${menuItemTitle}`).waitFor(); // Ensure it's visible.
+    const mainMenuLocator = page.getByRole('button', { name: 'Main Menu' });
+    if (await mainMenuLocator.isVisible()) {
+      await mainMenuLocator.click();
+    }
+    const menuLocator = page.getByText(menuItemTitle);
+    await menuLocator.waitFor(); // Ensure it's visible.
 
     //
     // Navigate to the menu management page to determine the menu id.
     //
     await page.goto(baseUrl + atkConfig.menuListUrl);
-
-    const menuLocator = await page.getByText(menuItemTitle); // eslint-disable-line no-unused-vars
 
     // Get the menu id from the edit button.
     const linkLocator = await menuLocator.locator('xpath=following::a[starts-with(@href, "/admin/structure/menu/item/")]').first();
@@ -80,7 +83,7 @@ test.describe("Menu tests.", () => {
     // Validate the menu item has been deleted.
     //
     await page.goto(baseUrl + atkConfig.menuListUrl);
-    const menuItemExists = await page.locator(`text=${menuItemTitle}`).count();
+    const menuItemExists = await menuLocator.count();
     test.expect(menuItemExists).toBe(0); // Ensure the item is gone.
   });
 });
