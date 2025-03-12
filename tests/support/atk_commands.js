@@ -452,8 +452,8 @@ async function logInViaForm (page, context, account) {
   await expect(textContent).toContain('Member for')
 
   // Keep the stored state in the support directory.
-  const authFile = atkConfig.supportDir + '/loginAuth.json'
-  await page.context().storageState({ path: authFile })
+  // const authFile = atkConfig.supportDir + '/loginAuth.json'
+  // await page.context().storageState({ path: authFile })
 }
 
 /**
