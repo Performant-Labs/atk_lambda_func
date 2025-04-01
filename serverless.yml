@@ -38,6 +38,7 @@ package:
   patterns:
     - '!.idea/**'
     - '!.git/**'
+    - '!playwright-report/**'
 
 custom:
   atksecret: ${ssm:/aws/reference/secretsmanager/atk}

@@ -1,12 +1,13 @@
 // @ts-check
-const { defineConfig, devices } = require('@playwright/test');
 import path from 'path'
+
+const { defineConfig, devices } = require('@playwright/test')
 
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
-require('dotenv').config();
+require('dotenv').config()
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -37,16 +38,16 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
     screenshot: 'on',
     launchOptions: {
-      slowMo: 0
-    }
+      slowMo: 0,
+    },
   },
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
       use: {
-        ...devices['Desktop Chrome']
-       },
+        ...devices['Desktop Chrome'],
+      },
     },
 
     // {
@@ -59,5 +60,4 @@ module.exports = defineConfig({
     //   use: { ...devices['Desktop Safari'] },
     // },
   ],
-});
-
+})

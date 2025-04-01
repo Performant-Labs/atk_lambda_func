@@ -66,7 +66,7 @@ exports.handler = async (event) => {
       cloudwatchLog('END Execution:' + JSON.stringify(value), params);
       return value;
     }).catch((error) => {
-      console.error('CloudWatch Log error', error);
+      console.error('CloudWatch Log error:', error);
       return value;
     });
 

@@ -8,109 +8,107 @@
 /** ESLint directives */
 /* eslint-disable import/first */
 
-import * as atkCommands from '../support/atk_commands';
-import * as atkUtilities from '../support/atk_utilities';
-
 // Set up Playwright.
-const { test, expect } = require('@playwright/test');
+import { expect, test } from '@playwright/test'
 
-import playwrightConfig from '../../playwright.config';
+import * as atkCommands from '../support/atk_commands'
+import * as atkUtilities from '../support/atk_utilities'
 
-const baseUrl = playwrightConfig.use.baseURL;
+import playwrightConfig from '../../playwright.config'
+
+const baseUrl = playwrightConfig.use.baseURL
 
 // Import ATK configuration.
-import atkConfig from '../../playwright.atk.config';
+import atkConfig from '../../playwright.atk.config'
 
 // Holds standard accounts that use user accounts created
 // by QA Accounts. QA Accounts are created when the QA
 // Accounts module is enabled.
-import qaUserAccounts from '../data/qaUsers.json';
+import qaUserAccounts from '../data/qaUsers.json'
 
 test.describe('Entity tests.', () => {
   //
   // Create taxonomy term, confirm it, update it, confirm update then delete it via the UI.
   //
   test('(ATK-PW-1120) Create, update, delete a taxonomy term via the UI. @ATK-PW-1120 @taxonomy @smoke @alters-db', async ({ page, context }) => {
-    const testId = 'ATK-PW-1120';
-    const uniqueToken = atkUtilities.createRandomString(6);
-    const termName = `${testId}: ${uniqueToken}`;
-    let bodyText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a ultrices tortor.';
+    const testId = 'ATK-PW-1120'
+    const uniqueToken = atkUtilities.createRandomString(6)
+    const termName = `${testId}: ${uniqueToken}`
+    let bodyText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a ultrices tortor.'
 
     // Log in with the administrator account.
     // You should change this to an account other than the administrator,
     // which has all rights.
-    await atkCommands.logInViaForm(page, context, qaUserAccounts.admin);
+    await atkCommands.logInViaForm(page, context, qaUserAccounts.admin)
 
     //
     // Add a taxonomy node to the tags vocabulary.
     //
-    await page.goto(baseUrl + atkConfig.termAddUrl);
+    await page.goto(baseUrl + atkConfig.termAddUrl)
 
     // Fill in as many fields as you need here.
     // Below we provide a name and body.
-    const titleTextfield = await page.$('input[name="name[0][value]"]');
-    await titleTextfield.fill(termName);
+    const titleTextfield = await page.$('input[name="name[0][value]"]')
+    await titleTextfield.fill(termName)
 
     // Some versions of Drupal may want this code instead of using Javascript
     // to type into CKEditor (which is what InputTextIntoCKEditor does).
-    // ckEditor = await page.locator('[aria-label="Editor editing area: main"]');
-    // await ckEditor.fill(bodyText);
-    await atkCommands.inputTextIntoCKEditor(page, bodyText);
+    // ckEditor = await page.locator('[aria-label="Editor editing area: main"]')
+    // await ckEditor.fill(bodyText)
+    await atkCommands.inputTextIntoCKEditor(page, bodyText)
 
-    await page.getByRole('button', { name: 'Save and go to list' }).click();
+    await page.getByRole('button', { name: 'Save and go to list' }).click()
 
     //
     // Fetch tag id from the list. The new term should be at
     // or near the top but we shouldn't assume that.
     //
-    await page.goto(baseUrl + atkConfig.termListUrl);
-    const termLocator = await page.getByText(termName); // eslint-disable-line no-unused-vars
+    await page.goto(baseUrl + atkConfig.termListUrl)
+    const termLocator = await page.getByText(termName)
 
     // Get the tid from the edit button.
-    // const linkLocator = menuLocator.locator('xpath=following::a[starts-with(@href, "/admin/structure/menu/item/")]').first();
-
-    const linkLocator = await termLocator.locator('xpath=following::a[starts-with(@href, "/taxonomy/term/")]').first();
-    const workingUrl = await linkLocator.getAttribute('href');
+    const linkLocator = await termLocator.locator('xpath=following::a[starts-with(@href, "/taxonomy/term/")]').first()
+    const workingUrl = await linkLocator.getAttribute('href')
 
     // Extract the tid.
-    const regex = /\/taxonomy\/term\/(\d+)(?:\/([a-zA-Z0-9_-]+))?/;
-    const tidArray = workingUrl.match(regex);
-    const tid = tidArray[1];
+    const regex = /\/taxonomy\/term\/(\d+)(?:\/([a-zA-Z0-9_-]+))?/
+    const tidArray = workingUrl.match(regex)
+    const tid = tidArray[1]
 
-    const termEditUrl = atkConfig.termEditUrl.replace('{tid}', tid);
-    const termViewUrl = atkConfig.termViewUrl.replace('{tid}', tid);
-    const termDeleteUrl = atkConfig.termDeleteUrl.replace('{tid}', tid);
+    const termEditUrl = atkConfig.termEditUrl.replace('{tid}', tid)
+    const termViewUrl = atkConfig.termViewUrl.replace('{tid}', tid)
+    const termDeleteUrl = atkConfig.termDeleteUrl.replace('{tid}', tid)
 
     // Validate the body.
-    await page.goto(baseUrl + termViewUrl);
-    await expect(bodyText).toContain(bodyText);
+    await page.goto(baseUrl + termViewUrl)
+    await expect(bodyText).toContain(bodyText)
 
     // Extract the tid placed in the body class by this hook:
     // automated_testing_kit.module:automated_testing_kit_preprocess_html().
-    const bodyClass = await page.evaluate(() => document.body.className); // eslint-disable-line no-unused-vars
+    const bodyClass = await page.evaluate(() => document.body.className) // eslint-disable-line no-unused-vars
 
     //
     // Update the term.
     //
-    bodyText = 'Ut eget ex vitae nibh dapibllus vulputate ut id lacus.';
+    bodyText = 'Ut eget ex vitae nibh dapibllus vulputate ut id lacus.'
 
-    await page.goto(baseUrl + termEditUrl);
+    await page.goto(baseUrl + termEditUrl)
 
     // See comment above if inputTextIntoCKEditor() does not work for you.
-    await atkCommands.inputTextIntoCKEditor(page, bodyText);
+    await atkCommands.inputTextIntoCKEditor(page, bodyText)
 
-    const button = await page.locator('#edit-save'); // eslint-disable-line no-unused-vars
+    const button = await page.locator('#edit-save') // eslint-disable-line no-unused-vars
     // await button.click( { force: true } )
-    await page.getByRole('button', { name: 'Save and go to list' }).click();
+    await page.getByRole('button', { name: 'Save and go to list' }).click()
 
     //
     // Delete the term.
     //
-    await page.goto(baseUrl + termDeleteUrl);
-    await page.getByRole('button', { name: 'Delete' }).click();
+    await page.goto(baseUrl + termDeleteUrl)
+    await page.getByRole('button', { name: 'Delete' }).click()
 
     // Adjust this confirmation to your needs.
-    const divContainer = await page.textContent('.messages--status');
-    await expect(divContainer).toContain('Deleted term');
-  });
-});
+    const divContainer = await page.textContent('.messages--status')
+    await expect(divContainer).toContain('Deleted term')
+  })
+})
