@@ -23,7 +23,8 @@ export default defineConfig(
     reporter: [
       ['list'],
       ['@azure/microsoft-playwright-testing/reporter'],
-      ['json', { outputFile: path.join(config.outputDir, 'index.json') }],
+      // ['json', { outputFile: path.join(config.outputDir, 'index.json') }],
+      ['html', { outputFolder: path.join(config.outputDir, 'html-report'), open: 'never' }],
     ],
   }
 );

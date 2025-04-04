@@ -12,6 +12,7 @@ const fs = require('fs');
 
 // Must be in /tmp and the same as in the playwright config, can't import it here.
 const testResultsPath = '/tmp/test-results/';
+const reportIndex = process.env.PLAYWRIGHT_REPORT_INDEX;
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const cloudWatchLogsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION });
@@ -74,7 +75,7 @@ exports.handler = async (event) => {
     const { code, message } = await runTests({ grep, }, params);
 
     // Report is not written, consider it an error and raise with command output
-    if (!fs.existsSync(testResultsPath) || !fs.existsSync(`${testResultsPath}/index.json`)) {
+    if (!fs.existsSync(testResultsPath) || !fs.existsSync(`${testResultsPath}/${reportIndex}`)) {
       return await logAndReturn({
         statusCode: 500,
         message,
@@ -206,6 +207,20 @@ function exec(cmd, args, callback, { logGroupName, logStreamName }) {
   childProcess.on('close', (code) => callback({ code, output }));
 }
 
+/**
+ * Imply content-type by file extension.
+ * @param filename {string}
+ * @return {string|undefined}
+ */
+function getContentType(filename) {
+  const dict = {
+    html: 'text/html; charset=utf-8',
+    json: 'application/json',
+  };
+  const ext = filename.substring(filename.lastIndexOf('.') + 1);
+  return dict[ext];
+}
+
 async function uploadResultsToS3({ bucket, uuid }) {
   // Root of the report in the bucket.
   const root = `${uuid}`;
@@ -222,11 +237,12 @@ async function uploadResultsToS3({ bucket, uuid }) {
       params: {
         Bucket: bucket,
         Key: `${root}/${relativePath}`,
-        Body: body
+        Body: body,
+        ContentType: getContentType(relativePath),
       }
     });
     let output = await upload.done();
-    if (relativePath === 'index.json') {
+    if (relativePath === reportIndex) {
       result = output;
     }
   });
