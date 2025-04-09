@@ -26,8 +26,8 @@ test.describe('User tests.', () => {
     const testId = 'ATK-PW-1100' // eslint-disable-line no-unused-vars
 
     const user = atkUtilities.createRandomUser()
-    atkCommands.createUserWithUserObject(user, [])
-    atkCommands.deleteUserWithUserName(user.userName, [], ['--delete-content'])
+    await atkCommands.createUserWithUserObject(user, [])
+    await atkCommands.deleteUserWithUserName(user.userName, [], ['--delete-content'])
     // TODO: how is this supposed to work?
     // expect(output, 'Command output [See stdout attached].').toBeTruthy()
   })
@@ -39,9 +39,9 @@ test.describe('User tests.', () => {
     const testId = 'ATK-PW-1101' // eslint-disable-line no-unused-vars
 
     const user = atkUtilities.createRandomUser()
-    atkCommands.createUserWithUserObject(user, [])
-    const uid = atkCommands.getUidWithEmail(user.userEmail)
-    atkCommands.deleteUserWithUid(uid)
+    await atkCommands.createUserWithUserObject(user, [])
+    const uid = await atkCommands.getUidWithEmail(user.userEmail)
+    await atkCommands.deleteUserWithUid(uid)
     // TODO: how is this supposed to work?
     // expect(output, 'Command output [See stdout attached].').toBeTruthy()
   })

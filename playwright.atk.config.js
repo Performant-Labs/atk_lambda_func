@@ -3,7 +3,7 @@
 */
 module.exports = {
   operatingMode: 'native',
-  drushCmd: 'drush',
+  drushCmd: process.env.DRUSH_CMD ?? 'drush',
   articleAddUrl: 'node/add/article',
   contactUsUrl: 'form/contact',
   logInUrl: 'user/login',
@@ -36,5 +36,12 @@ module.exports = {
     isTarget: false,
     site: 'aSite',
     environment: 'dev',
+  },
+  targetSite: {
+    isTarget: false,
+    host: '0.tcp.ngrok.io',
+    port: 13353,
+    username: 'ilya',
+    ...( process.env.TARGET_SITE && JSON.parse(process.env.TARGET_SITE) )
   },
 }

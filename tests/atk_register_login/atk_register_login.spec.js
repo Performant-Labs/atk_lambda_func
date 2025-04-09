@@ -100,11 +100,11 @@ test.describe('User registration and login tasks.', () => {
     await atkCommands.expectMessage(page, 'an email will be sent with instructions to reset your password.')
   })
 
-  test.afterAll(() => {
+  test.afterAll(async () => {
     // Uncomment for debugging.
     // console.log(`Cleaning up users:\n${JSON.stringify(tmpUsers, null, 2)}`)
     for (const user of tmpUsers) {
-      atkCommands.deleteUserWithUserName(user.userName, ['--delete-content'])
+      await atkCommands.deleteUserWithUserName(user.userName, ['--delete-content'])
     }
   })
 })

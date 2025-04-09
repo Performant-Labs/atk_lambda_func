@@ -122,9 +122,9 @@ test.describe('Caching tests.', () => {
 
   test.afterEach(async ({ page, context }) => {
     // Delete the page.
-    tmpNid.forEach((nid) => {
-      atkCommands.deleteNodeWithNid(nid)
-    })
+    for (const nid of tmpNid) {
+      await atkCommands.deleteNodeWithNid(nid)
+    }
 
     // Remove the block from the content layout.
     await atkCommands.logInViaForm(page, context, qaUserAccounts.admin)

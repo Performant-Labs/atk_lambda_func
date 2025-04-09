@@ -7,6 +7,7 @@ const {
   PutLogEventsCommand
 } = require('@aws-sdk/client-cloudwatch-logs');
 const { Upload } = require('@aws-sdk/lib-storage');
+const { SecretsManagerClient, GetSecretValueCommand } = require("@aws-sdk/client-secrets-manager");
 const path = require('path');
 const fs = require('fs');
 
@@ -40,9 +41,30 @@ exports.handler = async (event) => {
     // Customize grep if needed
     const grep = event.grep ?? '@smoke';
 
+    // Update drushCmd if passed
+    if (event.drushCmd) {
+      process.env.DRUSH_CMD = event.drushCmd;
+    }
 
-    // Custom LogWatch which is different from the defalut (console) logs.
-    // The perpose of it is to have predictable stream name
+    // Update targetSite if passed
+    if (event.targetSite) {
+      // Dump secret key
+      const key = await getPrivateKey();
+      if (!key) {
+        return await logAndReturn({
+          statusCode: 500,
+          message: 'Private key for SSH connection is missing',
+        });
+      }
+      fs.writeFileSync('/tmp/atk_lambda_func', key);
+
+      // Finally,
+      process.env.TARGET_SITE = JSON.stringify(event.targetSite);
+    }
+
+
+    // Custom LogWatch which is different from the default (console) logs.
+    // The purpose of it is to have predictable stream name
     const uuid = event.uuid;
     if (typeof uuid !== 'string' || !/[0-9a-z\-]{36}/.test(uuid)) {
       return await logAndReturn({
@@ -103,7 +125,20 @@ exports.handler = async (event) => {
 };
 
 /**
- * put a single message to the custom CloudWatch stream.
+ * Get a SHH private key.
+ *
+ * @returns {Promise<string>}
+ */
+async function getPrivateKey() {
+  const client = new SecretsManagerClient();
+  const response = await client.send(new GetSecretValueCommand({
+    SecretId: 'atk-lambda-func-secret-key',
+  }));
+  return response.SecretString;
+}
+
+/**
+ * Put a single message to the custom CloudWatch stream.
  *
  * @param message {string} message
  * @param logGroupName {string} group name

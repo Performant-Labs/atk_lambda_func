@@ -187,9 +187,9 @@ test.describe('Node tests.', () => {
     tmpNid.splice(tmpNid.indexOf(nid), 1)
   })
 
-  test.afterAll(() => {
-    tmpNid.forEach((nid) => {
-      atkCommands.deleteNodeWithNid(nid)
-    })
+  test.afterAll(async () => {
+    for (const nid of tmpNid) {
+      await atkCommands.deleteNodeWithNid(nid)
+    }
   })
 })

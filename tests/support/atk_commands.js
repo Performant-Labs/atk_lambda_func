@@ -11,6 +11,8 @@
 // Set up Playwright.
 import { expect } from '@playwright/test'
 import { execSync } from 'child_process'
+import { NodeSSH } from "node-ssh";
+
 import playwrightConfig from '../../playwright.config'
 
 // Fetch the Automated Testing Kit config, which is in the project root.
@@ -32,7 +34,7 @@ const baseUrl = playwrightConfig.use.baseURL
  * @param {array} args Array of string arguments to pass to Drush.
  * @param {array} options Array of string options to pass to Drush.
  */
-function createUserWithUserObject(user, roles = [], args = [], options = []) {
+async function createUserWithUserObject(user, roles = [], args = [], options = []) {
   let cmd = 'user:create '
 
   if (args === undefined || !Array.isArray(args)) {
@@ -51,7 +53,7 @@ function createUserWithUserObject(user, roles = [], args = [], options = []) {
   // Uncomment for debugging.
   // console.log(`Attempting to create: ${user.userName}. `)
 
-  execDrush(cmd, args, options)
+  await execDrush(cmd, args, options)
 
   // TODO: Bring this in when execDrush reliably
   // returns results.
@@ -69,13 +71,13 @@ function createUserWithUserObject(user, roles = [], args = [], options = []) {
     })
   }
 
-  roles.forEach((role) => {
+  for (const role of roles) {
     cmd = `user:role:add '${role}' '${user.userName}'`
-    execDrush(cmd)
+    await execDrush(cmd)
 
     // Uncomment for debugging.
     // console.log(`${role}: If role exists, role assigned to the user ${user.userName}`)
-  })
+  }
 }
 
 /**
@@ -112,10 +114,10 @@ async function deleteNodeViaUiWithNid(page, context, nid) {
  * Delete node via drush with a given nid.
  *
  * @param nid {number} Node ID.
- * @return {string} Command output.
+ * @return {Promise<string>} Command output.
  */
-function deleteNodeWithNid(nid) {
-  return execDrush(`entity:delete node ${nid}`)
+async function deleteNodeWithNid(nid) {
+  return await execDrush(`entity:delete node ${nid}`)
 }
 
 /**
@@ -140,7 +142,7 @@ function deleteNodeWithNid(nid) {
  * @todo Remove the "dummy" workaround when using Drush 12.x or later (expected 2025).
  * @see {@link https://github.com/drush-ops/drush/issues/5652|Drush Issue #5652}
  */
-function deleteUserWithEmail(email, options = []) {
+async function deleteUserWithEmail(email, options = []) {
   if (options === undefined || !Array.isArray(options)) {
     throw new Error('deleteUserWithEmail: Pass an array for options.')
   }
@@ -148,7 +150,7 @@ function deleteUserWithEmail(email, options = []) {
   options.push(`--mail=${email}`)
   const cmd = 'user:cancel -y dummy '
 
-  execDrush(cmd, [], options)
+  await execDrush(cmd, [], options)
 }
 
 /**
@@ -157,7 +159,7 @@ function deleteUserWithEmail(email, options = []) {
  * @param {number} uid - The Drupal user ID of the account to be deleted.
  * @param {string[]} [options=[]] - An optional array of additional Drush command options.
  * @throws {Error} Throws an error if options is provided but is not an array.
- * @returns {string} Command output if the command executed successfully.
+ * @returns {Promise<string>} Command output if the command executed successfully.
  * Empty string otherwise.
  *
  * @description
@@ -177,7 +179,7 @@ function deleteUserWithEmail(email, options = []) {
  * @todo Review and potentially remove the "dummy" workaround in future Drush versions.
  * @see Related to {@link https://github.com/drush-ops/drush/issues/5652|Drush Issue #5652}
  */
-function deleteUserWithUid(uid, options = []) {
+async function deleteUserWithUid(uid, options = []) {
   if (options === undefined || !Array.isArray(options)) {
     throw new Error('deleteUserWithUid: Pass an array for options.')
   }
@@ -186,7 +188,7 @@ function deleteUserWithUid(uid, options = []) {
   options.push('--delete-content')
   const cmd = 'user:cancel -y dummy '
 
-  return execDrush(cmd, [], options)
+  return await execDrush(cmd, [], options)
 }
 
 /**
@@ -199,14 +201,14 @@ function deleteUserWithUid(uid, options = []) {
  * @param {string[]} [args=[]] - An array of additional string arguments to pass to Drush.
  * @param {string[]} [options=[]] - An array of additional string options to pass to Drush.
  * @throws {Error} Throws an error if args or options are not arrays.
- * @returns {string} Command output if the command executed successfully, empty string
+ * @returns {Promise<string>} Command output if the command executed successfully, empty string
  * otherwise.
  *
  * @example
  * deleteUserWithUserName('johndoe');
  * deleteUserWithUserName('janedoe', ['--delete-content'], ['--notify']);
  */
-function deleteUserWithUserName(userName, args = [], options = []) {
+async function deleteUserWithUserName(userName, args = [], options = []) {
   const cmd = `user:cancel -y '${userName}'`
 
   if (!Array.isArray(args)) {
@@ -220,7 +222,7 @@ function deleteUserWithUserName(userName, args = [], options = []) {
   // Uncomment for debugging.
   // console.log(`Attempting to delete: ${userName}.`)
 
-  return execDrush(cmd, args, options)
+  return await execDrush(cmd, args, options)
 }
 
 /**
@@ -231,9 +233,9 @@ function deleteUserWithUserName(userName, args = [], options = []) {
  * @param {string} cmd The Drush command.
  * @param {array} args Array of string arguments to pass to Drush.
  * @param {array} options Array of string options to pass to Drush.
- * @returns {string} The output from executing the command in a shell.
+ * @returns {Promise<string>} The output from executing the command in a shell.
  */
-function execDrush(cmd, args = [], options = []) {
+async function execDrush(cmd, args = [], options = []) {
   let output = ''
 
   if (args === undefined || !Array.isArray(args)) {
@@ -254,6 +256,10 @@ function execDrush(cmd, args = [], options = []) {
   if (atkConfig.pantheon.isTarget) {
     // sshCmd comes from the test and is set in the before()
     return execPantheonDrush(command) // Returns stdout (not wrapped).
+  }
+
+  if (atkConfig.targetSite.isTarget) {
+    return execViaSsh(command)
   }
 
   try {
@@ -289,6 +295,45 @@ function execPantheonDrush(cmd) {
     // console.log(`execPantheonDrush result: ${result}`)
   } catch (error) {
     console.error(`execPantheonDrush error: ${error}`)
+  }
+
+  return result
+}
+
+/**
+ * Run a command via SSH.
+ *
+ * @param cmd {string} Command line.
+ * @returns {Promise<string>} The output from executing the command.
+ */
+async function execViaSsh(cmd) {
+  // Construct the command that will talk to the Pantheon server including
+  // the cmd argument.
+  // const sshOptions = atkConfig.targetSite.sshOptions;
+  // const envConnection = atkConfig.targetSite.remoteUser ?
+  //     `${atkConfig.targetSite.remoteUser}:${atkConfig.targetSite.remoteHost}` :
+  //     atkConfig.targetSite.remoteHost;
+  // const remoteCmd = `ssh -T ${sshOptions} -o 'StrictHostKeyChecking=no' -o 'AddressFamily inet' ${envConnection} '${cmd}'`
+
+  const ssh = new NodeSSH()
+
+  await ssh.connect({
+    host: atkConfig.targetSite.host,
+    port: atkConfig.targetSite.port,
+    username: atkConfig.targetSite.username,
+    privateKeyPath: '/tmp/atk_lambda_func',
+  })
+
+  let result = ''
+
+  try {
+    const { stdout, stderr } = await ssh.execCommand(cmd)
+    result = stdout
+    if (stderr) {
+      console.error(stderr)  // we shouldn't ignore it completely, huh???
+    }
+  } catch (error) {
+    console.error('execViaSsh error:', error)
   }
 
   return result
@@ -332,12 +377,12 @@ function getDrushAlias() {
  * Return the UID of a user given an email.
  *
  * @param {string} email Email of the account.
- * @returns {number} UID of user.
+ * @returns {Promise<number>} UID of user.
  */
-function getUidWithEmail(email) {
+async function getUidWithEmail(email) {
   const cmd = `user:info --mail=${email} --format=json`
 
-  const result = execDrush(cmd)
+  const result = await execDrush(cmd)
   if (result) {
     // Fetch uid from json object, if present.
     const userJson = JSON.parse(result)
@@ -356,11 +401,11 @@ function getUidWithEmail(email) {
  * Return the Username of a user given an email.
  *
  * @param {string} email Email of the account.
- * @returns {string} Username of user.
+ * @returns {Promise<string>} Username of user.
  */
-function getUsernameWithEmail(email) {
+async function getUsernameWithEmail(email) {
   const cmd = `user:info --mail=${email} --format=json`
-  const result = execDrush(cmd)
+  const result = await execDrush(cmd)
 
   // Fetch uid from json object, if present.
   let nameValue = null
@@ -487,7 +532,7 @@ async function logInViaUli(page, context, uid) {
   }
 
   cmd = `user:login --uid=${newUid}`
-  url = execDrush(cmd, [], [`--uri=${baseUrl}`])
+  url = await execDrush(cmd, [], [`--uri=${baseUrl}`])
 
   await page.goto(url) // Drush returns fully formed URL.
 }
@@ -513,44 +558,10 @@ async function logOutViaUi(page) {
  * @param {string} key Name of configuration setting.
  * @param {*} value Value of configuration setting.
  */
-function setDrupalConfiguration(objectName, key, value) {
+async function setDrupalConfiguration(objectName, key, value) {
   const cmd = `cset -y ${objectName} ${key} ${value}`
 
-  execDrush(cmd)
-}
-
-// Check global prerequisites.
-// (Once per test run.)
-const prerequisites = readYAML('atk_prerequisites.yml')
-const { prerequisitesOk } = globalThis
-if (prerequisitesOk === undefined) {
-  globalThis.prerequisitesOk = false
-  for (const prerequisite of prerequisites) {
-    if ('command' in prerequisite) {
-      const output = execDrush(prerequisite.command)
-      if (prerequisite.json) {
-        const outputJson = JSON.parse(output)
-        // Each property of prerequisite.json is a condition.
-        for (const [key, condition] of Object.entries(prerequisite.json)) {
-          const value = getProperty(outputJson, key)
-          if (typeof condition !== 'object') {
-            throw new Error('Condition must be {"eq":...} or ...')
-          }
-          for (const [conditionType, conditionValue] of Object.entries(condition)) {
-            switch (conditionType) {
-              case 'eq':
-                expect(value).toEqual(conditionValue)
-                break
-                // ...
-              default:
-                throw new Error(`Condition ${conditionType} is not implemented`)
-            }
-          }
-        }
-      }
-    }
-  }
-  globalThis.prerequisitesOk = true
+  await execDrush(cmd)
 }
 
 export {

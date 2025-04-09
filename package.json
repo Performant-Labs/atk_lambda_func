@@ -9,6 +9,7 @@
   "dependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.758.0",
     "@aws-sdk/client-s3": "^3.696.0",
+    "@aws-sdk/client-secrets-manager": "^3.782.0",
     "@aws-sdk/lib-storage": "^3.696.0",
     "@azure/microsoft-playwright-testing": "^1.0.0-beta.6",
     "@playwright/test": "^1.48",
@@ -17,6 +18,7 @@
     "dotenv": "^16.4",
     "fast-xml-parser": "^4.5",
     "junit-report-merger": "github:bhovhannes/junit-report-merger",
+    "node-ssh": "^13.2.1",
     "yaml": "^2.6.0"
   },
   "devDependencies": {

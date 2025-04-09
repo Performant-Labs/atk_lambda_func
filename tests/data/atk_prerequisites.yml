@@ -1,9 +1,0 @@
-# TODO Uncomment this once we are able to execute Drush over Drupal Forge
-[]
-#- command: 'pm:list --format=json'
-#  json:
-#    automated_testing_kit.status:
-#      eq: 'Enabled'
-#    qa_accounts.status:
-#      eq: 'Enabled'
-#
