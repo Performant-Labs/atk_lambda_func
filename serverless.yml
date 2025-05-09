@@ -51,7 +51,7 @@ functions:
 
   execute_tests:
     handler: execute_tests.handler
-    timeout: 120
+    timeout: 900
     environment:
       ACCOUNT_ID: ${performantlabs:accountId}
       PLAYWRIGHT_SERVICE_ACCESS_TOKEN: ${self:custom.atksecret.PLAYWRIGHT_SERVICE_ACCESS_TOKEN}
