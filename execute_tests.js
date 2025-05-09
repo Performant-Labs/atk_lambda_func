@@ -41,6 +41,9 @@ exports.handler = async (event) => {
     // Customize grep if needed
     const grep = event.grep ?? '@smoke';
 
+    // Customize number of workers of needed
+    const workers = event.workers ?? 10;
+
     // Update drushCmd if passed
     if (event.drushCmd) {
       process.env.DRUSH_CMD = event.drushCmd;
@@ -94,7 +97,7 @@ exports.handler = async (event) => {
     });
 
     // Execute the Playwright tests
-    const { code, message } = await runTests({ grep, }, params);
+    const { code, message } = await runTests({ grep, workers }, params);
 
     // Report is not written, consider it an error and raise with command output
     if (!fs.existsSync(testResultsPath) || !fs.existsSync(`${testResultsPath}/${reportIndex}`)) {
@@ -161,18 +164,19 @@ function cloudwatchLog(message, { logGroupName, logStreamName }) {
  * Run the test, with the particular run params, and logging params.
  *
  * @param grep Grep in Playwright
+ * @param workers Number of workers
  * @param logGroupName CloudWatch log group
  * @param logStreamName CloudWatch log stream
  * @return {Promise<{message: string, code: number}>} Commandline output
  */
-async function runTests({ grep }, { logGroupName, logStreamName }) {
+async function runTests({ grep, workers }, { logGroupName, logStreamName }) {
   return new Promise((resolve, reject) => {
     // Configure runner options / replace command to debug / ... here.
     exec('npx', [
       'playwright',
       'test',
       '--config=playwright.service.config.js',
-      '--workers=10',
+      `--workers=${workers}`,
       `--grep=${grep}`,
     ], ({ code, output }) => {
       // Cut off npm update notice.
